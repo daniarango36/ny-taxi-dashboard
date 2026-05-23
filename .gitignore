@@ -1,0 +1,15 @@
+# Entornos virtuales y cachés
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Datos sensibles y pesados (Opcional: puedes ignorar parquet si es muy grande)
+data/*.parquet
+data/*.csv
+.env
+secrets.toml
+
+# Streamlit
+.streamlit/secrets.toml
