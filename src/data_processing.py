@@ -22,7 +22,7 @@ def load_and_preprocess_data(parquet_path: str, csv_path: str) -> pd.DataFrame:
     
     # Asegurar que rango_hora sea ordinal (ej: '00:00-03:59' -> 1)
     # Se asume que viene como string, lo limpiamos y extraemos la hora inicial para ordenar
-    df['rango_hora_ordinal'] = df['rango_hora'].apply(lambda x: int(str(x).split(':')[0]) if isinstance(x, str) else x)
+    df['rango_hora_ordinal'] = df['rango_hora'].apply(lambda x: int(str(x).split('-')[0].split(':')[0]) if isinstance(x, str) else x)
 
     # 3. Preparación Geoespacial (Merge)
     # Hacemos merge para Origen (PULocationID)
