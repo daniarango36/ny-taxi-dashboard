@@ -90,7 +90,7 @@ with col2:
         }
     ))
     fig_gauge.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
-    st.plotly_chart(fig_gauge, use_container_width=True)
+    st.plotly_chart(fig_gauge, width="stretch")
 
 st.markdown("---")
 
@@ -121,47 +121,39 @@ def generar_bloque_graficos(tipo_str, col_zona):
         )
         fig_hist.update_traces(marker_color=top_zones['color'], textposition='outside')
         fig_hist.update_layout(height=350, margin=dict(t=20, b=20))
-        st.plotly_chart(fig_hist, use_container_width=True)
+        st.plotly_chart(fig_hist, width="stretch")
         
     with c2:
         st.subheader(f"Tendencia de Demanda Histórica y Proyección Futura")
         
-        # Filtrar el histórico completo únicamente para las top 5 zonas
         df_historico = df_pred[df_pred[col_zona].isin(top_zones[col_zona])]
         df_linea = df_historico.groupby(['numero_semana', col_zona, 'tipo'])['conteo'].sum().reset_index()
         
-        # Determinar la frontera entre el pasado real y el futuro predictivo
         max_semana_real = df_linea[df_linea['tipo'] == 'Real']['numero_semana'].max()
         
-        # 1. Tramo Histórico: Mantener estrictamente el 'Real'
         df_real_part = df_linea[df_linea['tipo'] == 'Real'].copy()
-        
-        # 2. Tramo Futuro: Mantener el 'Predictivo' solo para las semanas nuevas
         df_pred_part = df_linea[(df_linea['tipo'] == 'Predictivo') & (df_linea['numero_semana'] > max_semana_real)].copy()
         
-        # 3. Punto de Conexión: Clonar el último punto real como predictivo para evitar quiebres en la gráfica
         puntos_conexion = []
         for zona in df_real_part[col_zona].unique():
             df_zona_real = df_real_part[df_real_part[col_zona] == zona]
             if not df_zona_real.empty:
                 ultimo_punto = df_zona_real.loc[df_zona_real['numero_semana'].idxmax()].copy()
-                ultimo_punto['tipo'] = 'Predictivo'  # Lo etiquetamos para que empalme con el tramo futuro
+                ultimo_punto['tipo'] = 'Predictivo'
                 puntos_conexion.append(ultimo_punto)
                 
         if puntos_conexion:
             df_pred_part = pd.concat([df_pred_part, pd.DataFrame(puntos_conexion)], ignore_index=True)
             
-        # Unificar tramos ordenando cronológicamente
         df_grafico_linea = pd.concat([df_real_part, df_pred_part], ignore_index=True).sort_values(by=['numero_semana'])
         
-        # Graficar controlando explícitamente el estilo de la línea según el 'tipo'
         fig_line = px.line(
             df_grafico_linea, 
             x='numero_semana', 
             y='conteo', 
             color=col_zona,
             line_dash='tipo',
-            line_dash_map={'Real': 'solid', 'Predictivo': 'dash'}, # Real = Continua | Predictivo = Punteada
+            line_dash_map={'Real': 'solid', 'Predictivo': 'dash'},
             markers=True,
             labels={'conteo': 'Volumen de Viajes', 'numero_semana': 'Semana', 'tipo': 'Métrica'}
         )
@@ -169,9 +161,9 @@ def generar_bloque_graficos(tipo_str, col_zona):
         fig_line.update_layout(
             height=350, 
             margin=dict(t=20, b=20),
-            xaxis=dict(tickmode='linear', dtick=1) # Asegura que se vean todas las semanas enteras
+            xaxis=dict(tickmode='linear', dtick=1)
         )
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, width="stretch")
 
 generar_bloque_graficos("Origen (Pick-Up)", "PU_Zone")
 st.markdown("---")
