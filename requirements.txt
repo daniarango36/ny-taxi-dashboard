@@ -5,3 +5,6 @@ plotly
 pydeck
 scikit-learn
 pyarrow
+geopandas
+fiona
+shapely
