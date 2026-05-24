@@ -2,26 +2,20 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
-from src.data_processing import load_and_preprocess_data
-from src.ml_model import train_and_predict_demand
+from src.data_processing import obtener_datos_kpi
 
 st.set_page_config(page_title="KPI Dashboard", layout="wide")
 
 st.title("📊 Resumen y KPIs de Control Operativo")
 st.markdown("---")
 
-# Carga de Datos y Modelo
-df_raw = load_and_preprocess_data('data/resultado_agregado_total.parquet', 'data/taxi_zone_lookup_coordinates.csv')
-if df_raw.empty:
+# Carga de datos optimizada desde Parquet offline
+df_pred = obtener_datos_kpi()
+if df_pred.empty:
+    st.error("No se pudieron cargar los datos de rendimiento de KPIs.")
     st.stop()
 
-df_pred = train_and_predict_demand(df_raw)
-df_coords = pd.read_csv('data/taxi_zone_lookup_coordinates.csv')
-
-df_pred = df_pred.merge(df_coords[['LocationID', 'Zone']], left_on='PULocationID', right_on='LocationID', how='left').rename(columns={'Zone': 'PU_Zone'})
-df_pred = df_pred.merge(df_coords[['LocationID', 'Zone']], left_on='DOLocationID', right_on='LocationID', how='left').rename(columns={'Zone': 'DO_Zone'})
-
-# --- FILTROS GLOBALES ---
+# --- PANEL DE FILTROS LATERALES ---
 st.sidebar.header("Filtros Globales")
 
 semanas_disponibles = sorted(df_pred['numero_semana'].unique())
@@ -52,7 +46,7 @@ if lugares_seleccionados:
         (df_filtrado['DO_Zone'].isin(lugares_seleccionados))
     ]
 
-# --- MÉTRICAS GLOBALES ---
+# --- SECCIÓN DE METRICAS PRINCIPALES ---
 st.subheader("Métricas Globales de Cumplimiento")
 
 total_real = df_filtrado[df_filtrado['tipo'] == 'Real']['conteo'].sum()
@@ -94,7 +88,7 @@ with col2:
 
 st.markdown("---")
 
-# --- GRÁFICOS POR ZONA ---
+# --- CONSTRUCCIÓN DINÁMICA DE BLOQUES GRÁFICOS ---
 def generar_bloque_graficos(tipo_str, col_zona):
     st.header(f"Sección Análisis por {tipo_str}")
     

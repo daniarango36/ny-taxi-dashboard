@@ -2,23 +2,20 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import pydeck as pdk
-from src.data_processing import load_and_preprocess_data
+from src.data_processing import obtener_datos_mapa
 
 st.set_page_config(page_title="Análisis Geoespacial", layout="wide")
 
 st.title("🗺️ Análisis Geoespacial y Temporal de Demanda Diario")
 st.markdown("---")
 
-# Carga de datos base
-df_raw = load_and_preprocess_data('data/resultado_agregado_total.parquet', 'data/taxi_zone_lookup_coordinates.csv')
-
+# Carga directa de datos espaciales estables
+df_raw = obtener_datos_mapa()
 if df_raw.empty:
+    st.error("No se pudieron inicializar las variables geográficas.")
     st.stop()
 
-# --- FORZAR FORMATO DE FECHA ESTRICTO (YYYY-MM-DD) SIN HORA ---
-df_raw['fecha'] = pd.to_datetime(df_raw['fecha']).dt.strftime('%Y-%m-%d')
-
-# --- SECCIÓN DE FILTROS (PANEL LATERAL) ---
+# --- CONTROLADORES DEL MENÚ SIDEBAR ---
 st.sidebar.header("Filtros de Análisis")
 
 indicador = st.sidebar.radio("Tipo de Viaje", options=["Ida (Origen / Pick-Up)", "Vuelta (Destino / Drop-Off)"])
@@ -37,7 +34,7 @@ rangos_sel = st.sidebar.multiselect("Rango de Hora", options=rangos_hora, defaul
 todas_zonas = sorted(df_base['Zona'].dropna().unique())
 zonas_sel = st.sidebar.multiselect("Zona Operativa", options=todas_zonas, default=[])
 
-# --- APLICACIÓN DINÁMICA DE FILTROS ---
+# --- SEGMENTACIÓN DINÁMICA ---
 df_f = df_base.copy()
 
 if fechas_sel:
@@ -47,10 +44,7 @@ if rangos_sel:
 if zonas_sel:
     df_f = df_f[df_f['Zona'].isin(zonas_sel)]
 
-
-# ==============================================================================
-# GRAFICO 1 (ARRIBA): MAPA DE CALOR TEMPORAL
-# ==============================================================================
+# --- RENDERS GRÁFICOS: MATRIZ TEMPORAL ---
 st.subheader(f"🗓️ Matriz de Intensidad Temporal: {indicador}")
 
 df_time = df_f.groupby(['fecha', 'rango_hora'])['conteo'].sum().reset_index()
@@ -74,7 +68,7 @@ if not df_time.empty:
     fig_heat.update_layout(
         xaxis_title="Fecha de Operación",
         yaxis_title="Bloque Horario",
-        xaxis=dict(type='category'), # Previene reinterpretación de fechas a marcas de tiempo
+        xaxis=dict(type='category'),
         height=380,
         margin=dict(t=20, b=20, l=10, r=10)
     )
@@ -84,10 +78,7 @@ else:
 
 st.markdown("---")
 
-
-# ==============================================================================
-# GRAFICO 2 (ABAJO): MAPA GEOESPACIAL DE POLÍGONOS (PYDECK)
-# ==============================================================================
+# --- RENDERS GRÁFICOS: DENSIDAD POLIGONAL DE MAPAS ---
 st.subheader("📍 Densidad Espacial por Zonas")
 
 df_geo = df_f.groupby(['Zona', 'lat', 'lon'])['conteo'].sum().reset_index()
