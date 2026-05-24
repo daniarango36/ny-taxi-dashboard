@@ -3,7 +3,7 @@ import geopandas as gpd
 import streamlit as st
 import os
 
-@st.cache_data(show_spinner="Cargando y procesando datos...")
+@st.cache_data(show_spinner=False)
 def load_and_preprocess_data(parquet_path: str, csv_path: str) -> pd.DataFrame:
     """
     Carga el archivo parquet y el CSV, realiza limpieza temporal y cruces básicos.

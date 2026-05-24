@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 import streamlit as st
 
-@st.cache_data(show_spinner="Entrenando redes neuronales y generando proyecciones históricas...")
+@st.cache_data(show_spinner=False)
 def train_and_predict_demand(df: pd.DataFrame) -> pd.DataFrame:
     """
     Pipeline de Machine Learning para predecir la demanda por zona.
