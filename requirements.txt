@@ -3,6 +3,5 @@ pandas
 numpy
 plotly
 pydeck
-scikit-learn
 pyarrow
-geopandas
+scikit-learn

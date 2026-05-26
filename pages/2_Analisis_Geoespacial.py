@@ -25,8 +25,10 @@ if indicador == "Ida (Origen / Pick-Up)":
 else:
     df_base = df_raw.rename(columns={'DO_Zone': 'Zona', 'DO_lat': 'lat', 'DO_lon': 'lon'})
 
+# Lógica mejorada: Seleccionar los últimos 5 días por defecto
 fechas = sorted(df_base['fecha'].dropna().unique())
-fechas_sel = st.sidebar.multiselect("Fecha", options=fechas, default=[fechas[-1]] if fechas else [])
+dias_por_defecto = fechas[-5:] if len(fechas) >= 5 else fechas
+fechas_sel = st.sidebar.multiselect("Fecha", options=fechas, default=dias_por_defecto)
 
 rangos_hora = sorted(df_base['rango_hora'].dropna().unique())
 rangos_sel = st.sidebar.multiselect("Rango de Hora", options=rangos_hora, default=[])
@@ -129,10 +131,11 @@ if not df_geo.empty:
         pitch=0
     )
 
+    # AQUÍ ESTÁ LA MAGIA: carto-dark reemplaza a mapbox y no necesita API Keys
     st.pydeck_chart(pdk.Deck(
         layers=[capa_poligonos],
         initial_view_state=estado_vista,
-        map_style="mapbox://styles/mapbox/dark-v10",  
+        map_style="carto-dark",  
         tooltip={
             "html": "<b>Zona Operativa:</b> {Zona} <br/> <b>Servicios:</b> {tooltip_viajes}",
             "style": {"backgroundColor": "steelblue", "color": "white"}
