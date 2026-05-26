@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import pydeck as pdk
+import plotly.express as px
+import geopandas as gpd
+from shapely.geometry import Polygon
 from src.data_processing import obtener_datos_mapa
 
 st.set_page_config(page_title="Análisis Geoespacial", layout="wide")
@@ -25,7 +27,7 @@ if indicador == "Ida (Origen / Pick-Up)":
 else:
     df_base = df_raw.rename(columns={'DO_Zone': 'Zona', 'DO_lat': 'lat', 'DO_lon': 'lon'})
 
-# Lógica mejorada: Seleccionar los últimos 5 días por defecto
+# Lógica: Seleccionar los últimos 5 días por defecto
 fechas = sorted(df_base['fecha'].dropna().unique())
 dias_por_defecto = fechas[-5:] if len(fechas) >= 5 else fechas
 fechas_sel = st.sidebar.multiselect("Fecha", options=fechas, default=dias_por_defecto)
@@ -74,72 +76,55 @@ if not df_time.empty:
         height=380,
         margin=dict(t=20, b=20, l=10, r=10)
     )
-    st.plotly_chart(fig_heat, width="stretch")
+    st.plotly_chart(fig_heat, use_container_width=True)
 else:
     st.info("No hay registros que coincidan con los filtros seleccionados.")
 
 st.markdown("---")
 
-# --- RENDERS GRÁFICOS: DENSIDAD POLIGONAL DE MAPAS ---
+# --- RENDERS GRÁFICOS: DENSIDAD GEOPANDAS + PLOTLY ---
 st.subheader("📍 Densidad Espacial por Zonas")
 
 df_geo = df_f.groupby(['Zona', 'lat', 'lon'])['conteo'].sum().reset_index()
 
 if not df_geo.empty:
-    max_c = df_geo['conteo'].max()
-    min_c = df_geo['conteo'].min()
-    rng = (max_c - min_c) if max_c != min_c else 1
-
-    def generar_cuadrante_zona(row):
+    # 1. Crear polígonos matemáticos ligeros para no sobrecargar la RAM
+    def generar_poligono(row):
         delta = 0.0055  
         lat, lon = row['lat'], row['lon']
-        return [
-            [lon - delta, lat - delta],
-            [lon + delta, lat - delta],
-            [lon + delta, lat + delta],
-            [lon - delta, lat + delta]
-        ]
+        return Polygon([
+            (lon - delta, lat - delta),
+            (lon + delta, lat - delta),
+            (lon + delta, lat + delta),
+            (lon - delta, lat + delta)
+        ])
 
-    df_geo['polygon'] = df_geo.apply(generar_cuadrante_zona, axis=1)
-
-    def calcular_color_rojo(conteo):
-        norm = (conteo - min_c) / rng
-        r = 220
-        g = int(40 * (1 - norm))
-        b = int(40 * (1 - norm))
-        a = int(60 + 195 * norm)  
-        return [r, g, b, a]
-
-    df_geo['fill_color'] = df_geo['conteo'].apply(calcular_color_rojo)
-    df_geo['tooltip_viajes'] = df_geo['conteo'].apply(lambda x: f"{x:,.0f}")
-
-    capa_poligonos = pdk.Layer(
-        "PolygonLayer",
-        df_geo,
-        get_polygon="polygon",
-        get_fill_color="fill_color",
-        get_line_color=[255, 255, 255, 80], 
-        line_width_min_pixels=1,
-        pickable=True,
-        extruded=False
+    df_geo['geometry'] = df_geo.apply(generar_poligono, axis=1)
+    
+    # 2. Convertir el DataFrame normal a un GeoDataFrame oficial
+    gdf = gpd.GeoDataFrame(df_geo, geometry='geometry', crs="EPSG:4326")
+    
+    # 3. Renderizar sobre un mapa base gratuito usando Plotly Express
+    fig_mapa = px.choropleth_mapbox(
+        gdf,
+        geojson=gdf.geometry,
+        locations=gdf.index,
+        color='conteo',
+        color_continuous_scale="Reds",
+        mapbox_style="carto-darkmatter", # Render de ciudad estable y sin API Key
+        zoom=9.5,
+        center={"lat": 40.7128, "lon": -73.9560},
+        opacity=0.6,
+        hover_name="Zona",
+        hover_data={"conteo": True, "lat": False, "lon": False}
     )
-
-    estado_vista = pdk.ViewState(
-        latitude=40.7128,
-        longitude=-74.0060,
-        zoom=10,
-        pitch=0
+    
+    fig_mapa.update_layout(
+        margin={"r":0,"t":0,"l":0,"b":0},
+        coloraxis_colorbar=dict(title="Volumen de Viajes"),
+        height=500
     )
-
-    # AQUÍ ESTÁ LA MAGIA: carto-dark reemplaza a mapbox y no necesita API Keys
-    st.pydeck_chart(pdk.Deck(
-        layers=[capa_poligonos],
-        initial_view_state=estado_vista,
-        map_style="carto-dark",  
-        tooltip={
-            "html": "<b>Zona Operativa:</b> {Zona} <br/> <b>Servicios:</b> {tooltip_viajes}",
-            "style": {"backgroundColor": "steelblue", "color": "white"}
-        }
-    ))
+    
+    st.plotly_chart(fig_mapa, use_container_width=True)
 else:
     st.info("No hay datos geográficos para la selección actual.")

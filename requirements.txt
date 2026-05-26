@@ -2,6 +2,7 @@ streamlit
 pandas
 numpy
 plotly
-pydeck
 pyarrow
 scikit-learn
+geopandas
+shapely
